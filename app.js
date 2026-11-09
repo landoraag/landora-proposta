@@ -585,13 +585,9 @@
     buildPrint(a);
 
     $("#protocolo").textContent = a.protocolo;
-    const wpp = $("#btn-wpp"), cp = $("#btn-copiar");
-    if (D.whatsapp) {
-      wpp.hidden = false; cp.hidden = true;
-      wpp.href = `https://wa.me/${D.whatsapp}?text=${encodeURIComponent(state.assinado.resumo)}`;
-    } else {
-      wpp.hidden = true; cp.hidden = false;
-    }
+    $("#btn-wpp").hidden = false; $("#btn-copiar").hidden = true;
+    state.pdf = null;
+    state.pdfPromise = gerarPdf(a).then((f) => (state.pdf = f)).catch((err) => { console.error("PDF:", err); return null; });
     renderContrato();
     $("#contrato").scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
     if (!r.ok && r.motivo === "erro") toast("Contrato fechado, mas não consegui salvar online. Envie o resumo.");
@@ -601,7 +597,95 @@
     try { await navigator.clipboard.writeText(state.assinado.resumo); toast("Resumo copiado"); }
     catch (e) { toast("Não foi possível copiar"); }
   });
-  $("#btn-pdf").addEventListener("click", () => window.print());
+  /* ---------- PDF do contrato + compartilhar (WhatsApp, escolhendo o destinatário) ---------- */
+  function carregaJs(src) {
+    return new Promise((ok, no) => {
+      const s = document.createElement("script");
+      s.src = src; s.onload = ok; s.onerror = () => no(new Error("Falha ao carregar " + src));
+      document.head.appendChild(s);
+    });
+  }
+  async function gerarPdf(a) {
+    if (!window.html2canvas) await carregaJs("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
+    if (!window.jspdf) await carregaJs("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+    const src = $("#print-sheet");
+    const box = document.createElement("div");
+    box.id = "print-sheet"; box.className = "pdf-render";
+    box.innerHTML = src.innerHTML;
+    document.body.appendChild(box);
+    try {
+      let logoPng = null;
+      /* o logo vira imagem (SVG autônomo) para o html2canvas desenhar corretamente */
+      const sprite = document.querySelector("body > svg defs"), g = sprite && sprite.querySelector("#layer1");
+      const alvo = box.querySelector(".pl-dark svg");
+      if (alvo && g) {
+        const corpo = alvo.innerHTML.replace(/<use[^>]*><\/use>|<use[^>]*\/>/, g.outerHTML.replace(' id="layer1"', ""));
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="9 -2 990 204" width="990" height="204">${sprite.outerHTML}${corpo.replace(/<text /, '<text textLength="768" lengthAdjust="spacing" ')}</svg>`;
+        const img = new Image();
+        img.style.cssText = "height:40px;width:auto;display:block";
+        await new Promise((ok) => { img.onload = ok; img.onerror = ok; img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg); });
+        /* rasteriza em PNG: o html2canvas desenha PNG de forma confiável */
+        const cv = document.createElement("canvas");
+        cv.width = 1980; cv.height = 408;
+        cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+        const png = new Image();
+        png.width = 194; png.height = 40; png.style.cssText = "width:194px;height:40px;max-width:none;border:0;display:block;visibility:hidden";
+        await new Promise((ok) => { png.onload = ok; png.onerror = ok; png.src = cv.toDataURL("image/png"); });
+        alvo.replaceWith(png);
+        logoPng = png;
+      }
+      const canvas = await window.html2canvas(box, {
+        backgroundColor: "#ffffff", scale: 2, useCORS: true, windowWidth: 794,
+      });
+      if (logoPng) { /* o logo é desenhado por cima do espaço reservado */
+        const rb = box.getBoundingClientRect(), rl = logoPng.getBoundingClientRect();
+        const k = canvas.width / rb.width;
+        const cx = canvas.getContext("2d");
+        cx.setTransform(1, 0, 0, 1, 0, 0); /* o html2canvas deixa translate/scale ativos */
+        cx.drawImage(logoPng, (rl.left - rb.left) * k, (rl.top - rb.top) * k, rl.width * k, rl.height * k);
+      }
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit: "pt", format: "a4" });
+      const W = pdf.internal.pageSize.getWidth(), H = pdf.internal.pageSize.getHeight();
+      const sliceH = Math.floor(canvas.width * H / W);
+      for (let y = 0, p = 0; y < canvas.height; y += sliceH, p++) {
+        const h = Math.min(sliceH, canvas.height - y);
+        const part = document.createElement("canvas");
+        part.width = canvas.width; part.height = h;
+        const ctx = part.getContext("2d");
+        ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, part.width, h);
+        ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+        if (p) pdf.addPage();
+        pdf.addImage(part.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, W, h * W / canvas.width);
+      }
+      const blob = pdf.output("blob");
+      return new File([blob], `Contrato-Landora-${a.protocolo}.pdf`, { type: "application/pdf" });
+    } finally { box.remove(); }
+  }
+  function baixar(file) {
+    const u = URL.createObjectURL(file), l = document.createElement("a");
+    l.href = u; l.download = file.name; document.body.appendChild(l); l.click(); l.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 4000);
+  }
+  $("#btn-wpp").addEventListener("click", async () => {
+    const a = state.assinado; if (!a) return;
+    const texto = a.resumo;
+    const file = state.pdf || (await state.pdfPromise);
+    try {
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], text: texto, title: "Contrato Landora" });
+        return;
+      }
+    } catch (err) { if (err && err.name === "AbortError") return; }
+    /* Sem compartilhamento nativo (ex.: computador): baixa o PDF e abre o WhatsApp sem número fixo */
+    if (file) { baixar(file); toast("PDF baixado — anexe na conversa do WhatsApp"); }
+    window.open("https://wa.me/?text=" + encodeURIComponent(texto), "_blank", "noopener");
+  });
+  $("#btn-pdf").addEventListener("click", async () => {
+    const a = state.assinado; if (!a) return;
+    const file = state.pdf || (await state.pdfPromise);
+    if (file) baixar(file); else window.print();
+  });
   $("#btn-editar").addEventListener("click", () => { state.assinado = null; renderContrato(); });
 
   /* ---------- Carrinho: navegação e mobile ---------- */

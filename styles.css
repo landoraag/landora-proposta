@@ -672,3 +672,16 @@ input[type=text]:focus,input[type=email]:focus{outline:none;border-color:var(--b
 @media (prefers-reduced-motion:reduce){.boot-logo,.boot-bar i{animation:none}.boot-bar i{width:100%}}
 .party-name{display:block;font-size:16px;margin-top:2px}
 .party-ig{display:block;color:var(--muted,rgba(255,255,255,.66));font-size:14px}
+
+/* PDF do contrato (renderizado fora da tela para exportar/compartilhar) */
+#print-sheet.pdf-render{display:block;position:fixed;left:-10000px;top:0;width:794px;background:#fff;font-family:var(--font);color:#0A0A0A;padding:32px;box-sizing:border-box}
+#print-sheet.pdf-render h1{font-size:22px;margin:0 0 4px}
+#print-sheet.pdf-render h2{font-size:14px;margin:18px 0 6px;text-transform:uppercase;letter-spacing:.08em;color:#1E3A8A}
+#print-sheet.pdf-render table{width:100%;border-collapse:collapse;font-size:12px}
+#print-sheet.pdf-render th,#print-sheet.pdf-render td{padding:6px 4px;border-bottom:1px solid #ddd;text-align:left}
+#print-sheet.pdf-render .num{text-align:right}
+#print-sheet.pdf-render img{max-width:280px}
+#print-sheet.pdf-render ul{font-size:11px;padding-left:16px}
+#print-sheet.pdf-render .meta{font-size:12px;color:#444}
+#print-sheet.pdf-render .pl-dark{display:inline-block;background:#0A0A0A;padding:8px 14px;border-radius:8px;vertical-align:middle;margin-right:8px}
+#print-sheet.pdf-render .pl-dark svg{height:40px;width:auto;display:block}
