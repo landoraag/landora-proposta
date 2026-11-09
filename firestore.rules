@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Administradores (e-mails Google verificados). Edite a lista para liberar mais pessoas.
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in ['landora.comercial@gmail.com'];
+    }
+
+    // Contratos fechados (aceite eletrônico): qualquer visitante pode CRIAR; só admin lê/apaga.
+    match /propostas/{id} {
+      allow create: if request.resource.data.keys().hasAll(['protocolo','cliente','nome','documento','email','contrato'])
+                    && request.resource.data.contrato is list
+                    && request.resource.data.contrato.size() > 0
+                    && request.resource.data.nome is string
+                    && request.resource.data.nome.size() < 200
+                    && request.resource.data.email is string
+                    && request.resource.data.email.size() < 200;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Modelos de proposta (criados no painel /admin).
+    // O cliente abre pelo link ?p=slug (leitura direta); a listagem é só do admin.
+    match /modelos/{slug} {
+      allow get: if true;
+      allow list, write: if isAdmin();
+
+      match /modulos/{id} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+    }
+  }
+}
