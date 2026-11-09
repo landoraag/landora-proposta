@@ -57,7 +57,7 @@
     try { lista = await S.listModelos(); try { nContratos = (await S.listPropostas()).length; } catch (_) {} }
     catch (e) {
       console.error(e);
-      app.innerHTML = topo() + `<div class="panel"><b class="msg-err">Sem permissão ou erro ao ler.</b><p class="sub" style="margin-top:8px">Confirme que o seu e-mail está na lista <code>isAdmin()</code> do firestore.rules e que as regras foram publicadas. (${esc(e.code || e.message)})</p></div>`;
+      app.innerHTML = topo() + `<div class="panel"><b class="msg-err">Acesso negado</b><p class="sub" style="margin-top:8px">Você não tem permissão para acessar este painel. Entre com uma conta autorizada.</p></div>`;
       bindSair(); return;
     }
     app.innerHTML = topo() + `
