@@ -685,3 +685,14 @@ input[type=text]:focus,input[type=email]:focus{outline:none;border-color:var(--b
 #print-sheet.pdf-render .meta{font-size:12px;color:#444}
 #print-sheet.pdf-render .pl-dark{display:inline-block;background:#0A0A0A;padding:8px 14px;border-radius:8px;vertical-align:middle;margin-right:8px}
 #print-sheet.pdf-render .pl-dark svg{height:40px;width:auto;display:block}
+
+/* Caixa de aceite do contrato */
+.check{align-items:flex-start;gap:14px;padding:16px 18px;border:1px solid var(--line-2);border-radius:14px;background:rgba(255,255,255,.03);cursor:pointer;line-height:1.5;transition:border-color .2s,background .2s,box-shadow .2s}
+.check:hover{border-color:rgba(0,87,255,.6)}
+.check:has(input:checked){border-color:#0057FF;background:rgba(0,87,255,.1)}
+.check:has(input:focus-visible){box-shadow:0 0 0 3px rgba(0,87,255,.35)}
+.check input{-webkit-appearance:none;appearance:none;flex:none;width:24px;height:24px;margin:1px 0 0;border:2px solid rgba(255,255,255,.4);border-radius:7px;background:transparent center/14px no-repeat;cursor:pointer;transition:background-color .2s,border-color .2s,transform .15s}
+.check input:hover{border-color:#fff}
+.check input:checked{background-color:#0057FF;border-color:#0057FF;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E")}
+.check input:active{transform:scale(.92)}
+.check input:focus-visible{outline:none}
