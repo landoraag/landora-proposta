@@ -644,19 +644,37 @@
         cx.setTransform(1, 0, 0, 1, 0, 0); /* o html2canvas deixa translate/scale ativos */
         cx.drawImage(logoPng, (rl.left - rb.left) * k, (rl.top - rb.top) * k, rl.width * k, rl.height * k);
       }
+      /* pontos seguros para quebrar a página: início de itens, linhas e títulos (nunca no meio de uma linha) */
+      const k2 = canvas.width / box.getBoundingClientRect().width, bt = box.getBoundingClientRect().top;
+      const cortes = [];
+      box.querySelectorAll("li, tr, p, h1, h2").forEach((el) => {
+        const prev = el.previousElementSibling;
+        if (el.matches("li, tr") && !prev) return;              /* primeiro item fica junto do título */
+        if (el.matches("p") && prev && /^H[12]$/.test(prev.tagName)) return;
+        cortes.push(Math.floor((el.getBoundingClientRect().top - bt) * k2) - 4);
+      });
+      cortes.sort((x, y) => x - y);
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({ unit: "pt", format: "a4" });
       const W = pdf.internal.pageSize.getWidth(), H = pdf.internal.pageSize.getHeight();
-      const sliceH = Math.floor(canvas.width * H / W);
-      for (let y = 0, p = 0; y < canvas.height; y += sliceH, p++) {
-        const h = Math.min(sliceH, canvas.height - y);
+      const M = 36; /* margem superior/inferior em pt */
+      const sliceH = Math.floor(canvas.width * (H - 2 * M) / W);
+      for (let y = 0, p = 0; y < canvas.height; p++) {
+        let fim = y + sliceH;
+        if (fim >= canvas.height) fim = canvas.height;
+        else {
+          const ok = cortes.filter((c) => c > y + sliceH * 0.4 && c <= fim);
+          if (ok.length) fim = ok[ok.length - 1];
+        }
+        const h = fim - y;
         const part = document.createElement("canvas");
         part.width = canvas.width; part.height = h;
         const ctx = part.getContext("2d");
         ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, part.width, h);
         ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
         if (p) pdf.addPage();
-        pdf.addImage(part.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, W, h * W / canvas.width);
+        pdf.addImage(part.toDataURL("image/jpeg", 0.92), "JPEG", 0, M, W, h * W / canvas.width);
+        y = fim;
       }
       const blob = pdf.output("blob");
       return new File([blob], `Contrato-Landora-${a.protocolo}.pdf`, { type: "application/pdf" });
